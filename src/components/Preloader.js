@@ -5,35 +5,23 @@ export function createPreloader(onComplete) {
   container.id = 'preloader';
 
   container.innerHTML = `
-    <div class="radar-container">
-      <div class="radar-ring"></div>
-      <div class="radar-ring"></div>
-      <div class="radar-ring"></div>
-      <div class="radar-crosshair-h"></div>
-      <div class="radar-crosshair-v"></div>
-      <div class="radar-sweep"></div>
-      <div class="radar-spot radar-spot-1"></div>
-      <div class="radar-spot radar-spot-2"></div>
-      <div class="radar-spot radar-spot-3"></div>
-      <div class="radar-center-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.5 2.8C2.1 10.7 2 11 2 11.3V16c0 .6.4 1 1 1h2"/>
-          <circle cx="7" cy="17" r="2"/>
-          <path d="M9 17h6"/>
-          <circle cx="17" cy="17" r="2"/>
-        </svg>
-      </div>
+    <div class="preloader-radar-wrapper">
+      <div class="radar-ring-light"></div>
+      <div class="radar-ring-light"></div>
+      <div class="radar-ring-light"></div>
+      <div class="radar-sweep-light"></div>
+      <div class="radar-center-dot"></div>
     </div>
     
-    <div class="preloader-status" id="preloader-text">
+    <div class="preloader-text-status" id="preloader-text">
       Scanning nearby <span>Metro & Work</span> parking spots...
     </div>
 
-    <div class="progress-track">
-      <div class="progress-fill" id="preloader-fill"></div>
+    <div class="progress-track-light">
+      <div class="progress-fill-light" id="preloader-fill"></div>
     </div>
 
-    <div style="margin-top: 12px; font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-muted);" id="preloader-percent">
+    <div style="margin-top: 12px; font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--on-surface-variant);" id="preloader-percent">
       0%
     </div>
   `;
@@ -61,7 +49,7 @@ export function createPreloader(onComplete) {
       
       gsap.to(container, {
         opacity: 0,
-        duration: 0.6,
+        duration: 0.5,
         delay: 0.2,
         onComplete: () => {
           container.classList.add('fade-out');

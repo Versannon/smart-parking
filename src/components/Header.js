@@ -1,26 +1,76 @@
-export function renderHeader(onHostClick) {
-  return `
-    <header class="navbar">
-      <div class="container nav-content">
-        <a href="#" class="logo">
-          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.5 2.8C2.1 10.7 2 11 2 11.3V16c0 .6.4 1 1 1h2"/>
-            <circle cx="7" cy="17" r="2"/>
-            <path d="M9 17h6"/>
-            <circle cx="17" cy="17" r="2"/>
-          </svg>
-          Parkora
-          <span class="logo-badge">Live Radar</span>
-        </a>
+import { getCurrentUser } from '../utils/auth.js';
+import { getDynamicHostStats } from '../data/mockData.js';
 
-        <div class="nav-actions">
-          <button class="btn btn-secondary" id="nav-host-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            Rent Your Space
-          </button>
-          <button class="btn btn-primary" id="nav-find-btn">
-            Find Parking Spots
-          </button>
+export function renderHeader() {
+  const user = getCurrentUser();
+  const hostStats = user && user.role === 'owner' ? getDynamicHostStats(user.id) : null;
+
+  return `
+    <header class="header-navbar">
+      <div class="header-container">
+        <div style="display: flex; align-items: center; gap: 40px;">
+          <a href="#" class="brand-logo" id="brand-logo-btn">
+            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1; font-size: 32px;">local_parking</span>
+            Parkora
+          </a>
+
+          <nav class="nav-links">
+            <a href="#" class="nav-link active" id="nav-link-find">Find Parking</a>
+            <a href="#" class="nav-link" id="nav-link-solutions">Solutions</a>
+            <a href="#" class="nav-link" id="nav-link-locations">Locations</a>
+            <a href="#" class="nav-link" id="nav-link-pricing">Pricing</a>
+          </nav>
+        </div>
+
+        <div class="header-actions">
+          ${user ? `
+            <!-- Logged-in Dynamic State -->
+            <div style="display: flex; align-items: center; gap: 12px;">
+              ${user.role === 'customer' ? `
+                <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid var(--primary-container); border-radius: var(--radius-full); padding: 4px 12px; font-size: 12px; font-weight: 700; color: var(--primary-container); display: flex; align-items: center; gap: 4px;">
+                  <span class="material-symbols-outlined" style="font-size: 16px;">account_balance_wallet</span>
+                  ₹${(user.walletBalance || 0).toLocaleString()}
+                </div>
+
+                <button class="btn-secondary" id="nav-my-bookings-btn" style="padding: 8px 14px; font-size: 12px;">
+                  <span class="material-symbols-outlined" style="font-size: 16px;">confirmation_number</span> My Bookings
+                </button>
+              ` : ''}
+
+              ${user.role === 'owner' ? `
+                <div style="background: #e0f2fe; border: 1px solid #0284c7; border-radius: var(--radius-full); padding: 4px 12px; font-size: 12px; font-weight: 700; color: #0369a1; display: flex; align-items: center; gap: 4px;">
+                  <span class="material-symbols-outlined" style="font-size: 16px;">payments</span>
+                  ₹${(hostStats?.monthlyIncome || 14500).toLocaleString()}/mo
+                </div>
+
+                <button class="btn-primary" id="nav-owner-dashboard-btn" style="padding: 8px 14px; font-size: 12px;">
+                  <span class="material-symbols-outlined" style="font-size: 16px;">roofing</span> Host Portal
+                </button>
+              ` : ''}
+
+              ${user.role === 'admin' ? `
+                <button class="btn-primary" id="nav-admin-dashboard-btn" style="padding: 8px 14px; font-size: 12px; background-color: var(--error); color: #fff;">
+                  <span class="material-symbols-outlined" style="font-size: 16px;">admin_panel_settings</span> Admin Panel
+                </button>
+              ` : ''}
+
+              <!-- User Profile Menu -->
+              <div style="display: flex; align-items: center; gap: 8px; background-color: var(--surface-container-low); padding: 4px 10px 4px 4px; border-radius: var(--radius-full); border: 1px solid var(--surface-variant);">
+                <img src="${user.avatar}" alt="${user.name}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;" />
+                <div style="display: flex; flex-direction: column;">
+                  <span style="font-size: 12px; font-weight: 700; color: var(--on-surface); line-height: 1.1;">${user.name.split(' ')[0]}</span>
+                  <span style="font-size: 10px; font-weight: 600; color: var(--primary-container);">${user.roleBadge}</span>
+                </div>
+                <button id="nav-logout-btn" title="Logout / Switch Account" style="background: transparent; border: none; cursor: pointer; color: var(--on-surface-variant); padding: 2px; margin-left: 4px;">
+                  <span class="material-symbols-outlined" style="font-size: 18px;">logout</span>
+                </button>
+              </div>
+            </div>
+          ` : `
+            <!-- Logged-out State -->
+            <button class="btn-ghost" id="nav-login-btn">Login / Sign In</button>
+            <button class="btn-primary" id="nav-host-btn">Become a Host</button>
+          `}
         </div>
       </div>
     </header>
