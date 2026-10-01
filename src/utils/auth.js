@@ -1,4 +1,4 @@
-// Authentication & Mock Profile Utility
+// Authentication, Mock Profile & Persistent Wallet Ledger Utility
 
 export const MOCK_USERS = [
   {
@@ -18,6 +18,7 @@ export const MOCK_USERS = [
     role: "owner",
     avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=150&q=80",
     roleBadge: "Parking Owner",
+    walletBalance: 1500,
     monthlyEarnings: 14500,
     activeListingsCount: 3
   },
@@ -28,28 +29,127 @@ export const MOCK_USERS = [
     role: "admin",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80",
     roleBadge: "Administrator",
+    walletBalance: 2000,
     permissions: "Full System Access"
   }
 ];
 
-const STORAGE_KEY = 'parkora_current_user';
+const STORAGE_KEY = 'parkora_current_user_v3';
+const WALLETS_STORAGE_KEY = 'parkora_wallets_v3';
+const TRANSACTIONS_STORAGE_KEY = 'parkora_transactions_v3';
+
+const DEFAULT_WALLETS = {
+  "user-customer-1": 1250,
+  "user-owner-1": 1500,
+  "user-admin-1": 2000
+};
+
+const DEFAULT_TRANSACTIONS = [
+  {
+    id: "tx-init-1",
+    userId: "user-customer-1",
+    type: "credit",
+    amount: 1370,
+    title: "Initial Commuter Wallet Credit",
+    timestamp: "2026-08-24 09:00",
+    ref: "WELCOME-BONUS"
+  },
+  {
+    id: "tx-init-2",
+    userId: "user-customer-1",
+    type: "debit",
+    amount: 120,
+    title: "Slot Reservation — Metro Station Gate 2 Slot A",
+    timestamp: "2026-08-24 10:15",
+    ref: "PRK-9482"
+  }
+];
+
+function loadWallets() {
+  try {
+    const raw = localStorage.getItem(WALLETS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        return { ...DEFAULT_WALLETS, ...parsed };
+      }
+    }
+  } catch {
+    // fallback
+  }
+  return { ...DEFAULT_WALLETS };
+}
+
+function saveWallets(wallets) {
+  try {
+    localStorage.setItem(WALLETS_STORAGE_KEY, JSON.stringify(wallets));
+  } catch {
+    // ignore
+  }
+}
+
+function loadTransactions() {
+  try {
+    const raw = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {
+    // fallback
+  }
+  return structuredClone(DEFAULT_TRANSACTIONS);
+}
+
+function saveTransactions(transactions) {
+  try {
+    localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(transactions));
+  } catch {
+    // ignore
+  }
+}
+
+export function getUserWalletBalance(userId) {
+  const wallets = loadWallets();
+  const val = Number(wallets[userId]);
+  return Number.isFinite(val) ? Math.max(0, val) : (DEFAULT_WALLETS[userId] ?? 1000);
+}
+
+export function getUserTransactions(userId) {
+  const transactions = loadTransactions();
+  return transactions.filter(t => t.userId === userId);
+}
 
 export function getCurrentUser() {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (!stored) return null;
   try {
-    return JSON.parse(stored);
-  } catch (e) {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return null;
+    const parsed = JSON.parse(stored);
+    const known = MOCK_USERS.find(u => u.id === parsed?.id);
+    if (!known) return null;
+    const walletBalance = getUserWalletBalance(known.id);
+    return { ...known, walletBalance };
+  } catch {
     return null;
+  }
+}
+
+function persistCurrentUser(user) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+  } catch {
+    // storage may be unavailable
   }
 }
 
 export function loginAsUser(userId) {
   const user = MOCK_USERS.find(u => u.id === userId);
   if (user) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-    window.dispatchEvent(new CustomEvent('parkora-auth-change', { detail: user }));
-    return user;
+    const balance = getUserWalletBalance(user.id);
+    const activeUser = { ...user, walletBalance: balance };
+    persistCurrentUser(activeUser);
+    window.dispatchEvent(new CustomEvent('parkora-auth-change', { detail: activeUser }));
+    return activeUser;
   }
   return null;
 }
@@ -59,39 +159,69 @@ export function loginWithCredentials(email, password) {
   if (found) {
     return loginAsUser(found.id);
   }
-  
-  const customUser = {
-    id: `user-custom-${Date.now()}`,
-    name: email.split('@')[0] || "User",
-    email: email,
-    role: "customer",
-    avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
-    roleBadge: "Customer",
-    walletBalance: 500
-  };
-
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(customUser));
-  window.dispatchEvent(new CustomEvent('parkora-auth-change', { detail: customUser }));
-  return customUser;
+  return loginAsUser(MOCK_USERS[0].id);
 }
 
-export function updateUserWallet(amountChange) {
-  const user = getCurrentUser();
-  if (user) {
-    user.walletBalance = Math.max(0, (user.walletBalance || 0) + amountChange);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+export function updateUserWallet(amountChange, reason = 'Wallet Adjustment', refCode = '', targetUserId = null) {
+  const current = getCurrentUser();
+  const userId = targetUserId || current?.id || 'user-customer-1';
+  const wallets = loadWallets();
+  const currentBal = Number(wallets[userId]) || 0;
+  const newBal = Math.max(0, currentBal + amountChange);
 
-    // Also update mock user reference
-    const mockRef = MOCK_USERS.find(u => u.id === user.id);
-    if (mockRef) mockRef.walletBalance = user.walletBalance;
+  wallets[userId] = newBal;
+  saveWallets(wallets);
 
-    window.dispatchEvent(new CustomEvent('parkora-auth-change', { detail: user }));
-    return user.walletBalance;
+  // Record ledger entry
+  if (amountChange !== 0) {
+    const transactions = loadTransactions();
+    const newTx = {
+      id: `tx-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      userId,
+      type: amountChange > 0 ? 'credit' : 'debit',
+      amount: Math.abs(amountChange),
+      title: reason,
+      timestamp: new Date().toLocaleString([], {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      ref: refCode || (amountChange > 0 ? 'TOPUP-CREDIT' : 'DEBIT-CHARGE')
+    };
+    transactions.unshift(newTx);
+    saveTransactions(transactions);
   }
-  return 0;
+
+  // If the updated user is currently logged in, update session state
+  if (current && current.id === userId) {
+    const updatedUser = { ...current, walletBalance: newBal };
+    persistCurrentUser(updatedUser);
+    window.dispatchEvent(new CustomEvent('parkora-auth-change', { detail: updatedUser }));
+    return newBal;
+  }
+
+  window.dispatchEvent(new CustomEvent('parkora-auth-change', { detail: current }));
+  return newBal;
+}
+
+export function resetWalletsAndTransactions() {
+  saveWallets(DEFAULT_WALLETS);
+  saveTransactions(structuredClone(DEFAULT_TRANSACTIONS));
+  const current = getCurrentUser();
+  if (current) {
+    current.walletBalance = DEFAULT_WALLETS[current.id] || 1000;
+    persistCurrentUser(current);
+    window.dispatchEvent(new CustomEvent('parkora-auth-change', { detail: current }));
+  }
 }
 
 export function logoutUser() {
-  localStorage.removeItem(STORAGE_KEY);
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // storage may be unavailable
+  }
   window.dispatchEvent(new CustomEvent('parkora-auth-change', { detail: null }));
 }

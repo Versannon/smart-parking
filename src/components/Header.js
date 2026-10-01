@@ -1,75 +1,155 @@
 import { getCurrentUser } from '../utils/auth.js';
-import { getDynamicHostStats } from '../data/mockData.js';
+import { getDynamicHostStats, pendingSpots } from '../data/mockData.js';
 
 export function renderHeader() {
   const user = getCurrentUser();
   const hostStats = user && user.role === 'owner' ? getDynamicHostStats(user.id) : null;
+  const pendingCount = pendingSpots.length;
 
   return `
     <header class="header-navbar">
       <div class="header-container">
-        <div style="display: flex; align-items: center; gap: 40px;">
-          <a href="#" class="brand-logo" id="brand-logo-btn">
-            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1; font-size: 32px;">local_parking</span>
+        <div class="header-left-group">
+          <a href="#" class="brand-logo" id="brand-logo-btn" aria-label="Parkora Home">
+            <span class="material-symbols-outlined icon-filled-lg" aria-hidden="true">local_parking</span>
             Parkora
           </a>
 
-          <nav class="nav-links">
-            <a href="#" class="nav-link active" id="nav-link-find">Find Parking</a>
-            <a href="#" class="nav-link" id="nav-link-solutions">Solutions</a>
-            <a href="#" class="nav-link" id="nav-link-locations">Locations</a>
-            <a href="#" class="nav-link" id="nav-link-pricing">Pricing</a>
+          <nav class="nav-links" aria-label="Primary Navigation">
+            <a href="#search-grid-section" class="nav-link active" id="nav-link-find">Find Parking</a>
+            <a href="#solutions" class="nav-link" id="nav-link-solutions">Solutions</a>
+            <a href="#locations" class="nav-link" id="nav-link-locations">Locations</a>
+            <a href="#pricing" class="nav-link" id="nav-link-pricing">Pricing</a>
           </nav>
         </div>
 
         <div class="header-actions">
           ${user ? `
             <!-- Logged-in Dynamic State -->
-            <div style="display: flex; align-items: center; gap: 12px;">
-              ${user.role === 'customer' ? `
-                <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid var(--primary-container); border-radius: var(--radius-full); padding: 4px 12px; font-size: 12px; font-weight: 700; color: var(--primary-container); display: flex; align-items: center; gap: 4px;">
-                  <span class="material-symbols-outlined" style="font-size: 16px;">account_balance_wallet</span>
-                  ₹${(user.walletBalance || 0).toLocaleString()}
-                </div>
+            <div class="header-user-bar">
+              <button type="button" class="wallet-pill-btn" id="nav-wallet-topup-btn" title="Click to view wallet, history & add funds">
+                <span class="material-symbols-outlined icon-sm" aria-hidden="true">account_balance_wallet</span>
+                <span>₹${(user.walletBalance || 0).toLocaleString()}</span>
+                <span class="wallet-plus-badge" aria-hidden="true">+</span>
+              </button>
 
-                <button class="btn-secondary" id="nav-my-bookings-btn" style="padding: 8px 14px; font-size: 12px;">
-                  <span class="material-symbols-outlined" style="font-size: 16px;">confirmation_number</span> My Bookings
+              ${user.role === 'customer' ? `
+                <button type="button" class="btn-secondary btn-sm hide-mobile-xs" id="nav-my-bookings-btn">
+                  <span class="material-symbols-outlined icon-sm" aria-hidden="true">confirmation_number</span>
+                  <span>My Bookings</span>
                 </button>
               ` : ''}
 
               ${user.role === 'owner' ? `
-                <div style="background: #e0f2fe; border: 1px solid #0284c7; border-radius: var(--radius-full); padding: 4px 12px; font-size: 12px; font-weight: 700; color: #0369a1; display: flex; align-items: center; gap: 4px;">
-                  <span class="material-symbols-outlined" style="font-size: 16px;">payments</span>
-                  ₹${(hostStats?.monthlyIncome || 14500).toLocaleString()}/mo
+                <div class="host-earnings-pill hide-mobile-xs">
+                  <span class="material-symbols-outlined icon-sm" aria-hidden="true">payments</span>
+                  <span>₹${(hostStats?.monthlyIncome || 14500).toLocaleString()}/mo</span>
                 </div>
 
-                <button class="btn-primary" id="nav-owner-dashboard-btn" style="padding: 8px 14px; font-size: 12px;">
-                  <span class="material-symbols-outlined" style="font-size: 16px;">roofing</span> Host Portal
+                <button type="button" class="btn-primary btn-sm hide-mobile-xs" id="nav-owner-dashboard-btn">
+                  <span class="material-symbols-outlined icon-sm" aria-hidden="true">roofing</span>
+                  <span>Host Portal</span>
                 </button>
               ` : ''}
 
               ${user.role === 'admin' ? `
-                <button class="btn-primary" id="nav-admin-dashboard-btn" style="padding: 8px 14px; font-size: 12px; background-color: var(--error); color: #fff;">
-                  <span class="material-symbols-outlined" style="font-size: 16px;">admin_panel_settings</span> Admin Panel
+                <button type="button" class="btn-primary btn-sm btn-danger hide-mobile-xs" id="nav-admin-dashboard-btn">
+                  <span class="material-symbols-outlined icon-sm" aria-hidden="true">admin_panel_settings</span>
+                  <span>Admin Panel</span>
+                  ${pendingCount > 0 ? `<span class="admin-badge-dot">${pendingCount}</span>` : ''}
                 </button>
               ` : ''}
 
-              <!-- User Profile Menu -->
-              <div style="display: flex; align-items: center; gap: 8px; background-color: var(--surface-container-low); padding: 4px 10px 4px 4px; border-radius: var(--radius-full); border: 1px solid var(--surface-variant);">
-                <img src="${user.avatar}" alt="${user.name}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;" />
-                <div style="display: flex; flex-direction: column;">
-                  <span style="font-size: 12px; font-weight: 700; color: var(--on-surface); line-height: 1.1;">${user.name.split(' ')[0]}</span>
-                  <span style="font-size: 10px; font-weight: 600; color: var(--primary-container);">${user.roleBadge}</span>
+              <!-- User Profile Chip -->
+              <div class="user-profile-chip">
+                <img src="${user.avatar}" alt="${user.name}" class="user-avatar-sm" width="32" height="32" />
+                <div class="user-profile-meta">
+                  <span class="user-profile-name">${user.name.split(' ')[0]}</span>
+                  <span class="user-profile-role">${user.roleBadge}</span>
                 </div>
-                <button id="nav-logout-btn" title="Logout / Switch Account" style="background: transparent; border: none; cursor: pointer; color: var(--on-surface-variant); padding: 2px; margin-left: 4px;">
-                  <span class="material-symbols-outlined" style="font-size: 18px;">logout</span>
+                <button type="button" id="nav-logout-btn" class="icon-btn-ghost" title="Logout / Switch Account" aria-label="Logout">
+                  <span class="material-symbols-outlined icon-sm" aria-hidden="true">logout</span>
                 </button>
               </div>
             </div>
           ` : `
             <!-- Logged-out State -->
-            <button class="btn-ghost" id="nav-login-btn">Login / Sign In</button>
-            <button class="btn-primary" id="nav-host-btn">Become a Host</button>
+            <button type="button" class="btn-ghost hide-mobile-xs" id="nav-login-btn">Login / Sign In</button>
+            <button type="button" class="btn-primary btn-sm" id="nav-host-btn">Become a Host</button>
+          `}
+
+          <!-- Mobile Hamburger Menu Button -->
+          <button
+            type="button"
+            class="mobile-menu-btn"
+            id="mobile-menu-toggle-btn"
+            aria-expanded="false"
+            aria-controls="mobile-nav-drawer"
+            aria-label="Toggle navigation menu"
+          >
+            <span class="material-symbols-outlined" id="mobile-menu-icon" aria-hidden="true">menu</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile Navigation Drawer -->
+      <div class="mobile-nav-drawer" id="mobile-nav-drawer" aria-hidden="true">
+        <nav class="mobile-nav-links" aria-label="Mobile Navigation">
+          <a href="#search-grid-section" class="mobile-nav-link" data-mobile-nav="find">
+            <span class="material-symbols-outlined icon-sm" aria-hidden="true">search</span>
+            Find Parking
+          </a>
+          <a href="#solutions" class="mobile-nav-link" data-mobile-nav="solutions">
+            <span class="material-symbols-outlined icon-sm" aria-hidden="true">lightbulb</span>
+            Solutions
+          </a>
+          <a href="#locations" class="mobile-nav-link" data-mobile-nav="locations">
+            <span class="material-symbols-outlined icon-sm" aria-hidden="true">map</span>
+            Active Locations
+          </a>
+          <a href="#pricing" class="mobile-nav-link" data-mobile-nav="pricing">
+            <span class="material-symbols-outlined icon-sm" aria-hidden="true">payments</span>
+            Transparent Pricing
+          </a>
+        </nav>
+
+        <div class="mobile-drawer-actions">
+          ${user ? `
+            <div class="mobile-drawer-wallet-bar">
+              <div class="drawer-wallet-info">
+                <span class="material-symbols-outlined icon-emerald" aria-hidden="true">account_balance_wallet</span>
+                <div>
+                  <span class="drawer-wallet-label">Parkora Wallet</span>
+                  <strong class="drawer-wallet-val">₹${(user.walletBalance || 0).toLocaleString()}</strong>
+                </div>
+              </div>
+              <button type="button" class="btn-secondary btn-sm" id="mobile-wallet-btn">Manage</button>
+            </div>
+
+            ${user.role === 'customer' ? `
+              <button type="button" class="btn-secondary btn-block" id="mobile-my-bookings-btn">
+                <span class="material-symbols-outlined icon-sm" aria-hidden="true">confirmation_number</span>
+                My Active Bookings
+              </button>
+            ` : ''}
+            ${user.role === 'owner' ? `
+              <button type="button" class="btn-primary btn-block" id="mobile-owner-dashboard-btn">
+                <span class="material-symbols-outlined icon-sm" aria-hidden="true">roofing</span>
+                Open Host Portal
+              </button>
+            ` : ''}
+            ${user.role === 'admin' ? `
+              <button type="button" class="btn-primary btn-danger btn-block" id="mobile-admin-dashboard-btn">
+                <span class="material-symbols-outlined icon-sm" aria-hidden="true">admin_panel_settings</span>
+                Open Admin Panel (${pendingCount})
+              </button>
+            ` : ''}
+            <button type="button" class="btn-ghost btn-block" id="mobile-logout-btn">
+              Switch Account / Logout
+            </button>
+          ` : `
+            <button type="button" class="btn-secondary btn-block" id="mobile-login-btn">Login / Demo Accounts</button>
+            <button type="button" class="btn-primary btn-block" id="mobile-host-btn">Become a Host</button>
           `}
         </div>
       </div>
